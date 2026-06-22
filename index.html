@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OSRS Quiz</title>
+  <style>
+    :root {
+      --sage:    #D8E2DC;
+      --peach:   #FFE5D9;
+      --pink:    #FFCAD4;
+      --rose:    #F4ACB7;
+      --mauve:   #9D8189;
+      --mauve-d: #7a5f66;
+      --text:    #3d2e32;
+      --text-2:  #7a6870;
+      --correct: #5a8f6e;
+      --wrong:   #b85c57;
+      --white:   #ffffff;
+      --shadow:  0 2px 12px rgba(157,129,137,0.13);
+      --radius:  14px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--sage);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: var(--text);
+    }
+
+    .screen { display: none; width: 100%; max-width: 640px; }
+    .screen.active { display: flex; flex-direction: column; gap: 20px; }
+
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 32px;
+      box-shadow: var(--shadow);
+    }
+
+    h1 { font-size: 2rem; font-weight: 700; color: var(--mauve); letter-spacing: -0.5px; }
+    h2 { font-size: 1.25rem; font-weight: 600; color: var(--mauve); }
+    p  { color: var(--text-2); line-height: 1.6; }
+    .subtitle { font-size: 0.95rem; }
+
+    label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--mauve-d); margin-bottom: 6px; }
+    input[type="range"] { width: 100%; accent-color: var(--mauve); }
+    textarea {
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid var(--rose); border-radius: 9px;
+      font-size: 0.95rem; color: var(--text);
+      background: var(--peach); outline: none;
+      font-family: inherit; resize: vertical; min-height: 90px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    textarea:focus { border-color: var(--mauve); box-shadow: 0 0 0 3px rgba(157,129,137,0.15); }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 12px 24px; border: none; border-radius: 10px;
+      font-size: 0.95rem; font-weight: 600; cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.15s, background 0.15s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--mauve); color: var(--white); box-shadow: 0 2px 8px rgba(157,129,137,0.3); }
+    .btn-primary:hover { background: var(--mauve-d); box-shadow: 0 4px 14px rgba(157,129,137,0.35); }
+    .btn-secondary { background: var(--peach); color: var(--mauve-d); }
+    .btn-secondary:hover { background: var(--pink); }
+    .btn-full { width: 100%; }
+    .btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn-row .btn { flex: 1; }
+
+    .option-btn {
+      display: block; width: 100%; padding: 13px 18px;
+      background: var(--peach); border: 1.5px solid transparent;
+      border-radius: 10px; font-size: 0.95rem; text-align: left;
+      color: var(--text); cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+    .option-btn:hover:not(:disabled) { background: var(--pink); border-color: var(--rose); }
+    .option-btn:active:not(:disabled) { transform: scale(0.98); }
+    .option-btn.correct  { background: #d4edda; border-color: var(--correct); color: #1d5931; }
+    .option-btn.wrong    { background: #f8d7da; border-color: var(--wrong);   color: #7b2020; }
+    .option-btn:disabled { cursor: default; }
+    .options-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .progress-wrap { background: var(--pink); border-radius: 99px; height: 6px; overflow: hidden; }
+    .progress-bar { height: 100%; background: var(--mauve); border-radius: 99px; transition: width 0.4s ease; }
+    .progress-label { font-size: 0.8rem; color: var(--text-2); text-align: right; }
+
+    .feedback {
+      display: none; padding: 14px 18px; border-radius: 10px;
+      font-size: 0.9rem; line-height: 1.55;
+    }
+    .feedback.show { display: block; }
+    .feedback.correct { background: #d4edda; color: #1d5931; border: 1px solid #a3cfbb; }
+    .feedback.wrong   { background: #f8d7da; color: #7b2020; border: 1px solid #f1aeb5; }
+    .feedback-label { font-weight: 700; margin-bottom: 4px; }
+
+    .question-text { font-size: 1.15rem; font-weight: 600; line-height: 1.55; color: var(--text); }
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 99px;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; background: var(--pink); color: var(--mauve-d);
+    }
+    .q-header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    .score-big { font-size: 3rem; font-weight: 800; color: var(--mauve); text-align: center; }
+    .score-sub { font-size: 0.9rem; color: var(--text-2); text-align: center; }
+
+    .study-list { display: flex; flex-direction: column; gap: 12px; }
+    .study-item {
+      border-radius: 10px; border: 1.5px solid var(--rose);
+      background: var(--peach); padding: 16px 18px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .study-q { font-weight: 600; font-size: 0.92rem; color: var(--text); }
+    .study-row { display: flex; gap: 6px; align-items: flex-start; font-size: 0.85rem; }
+    .study-label { font-weight: 700; color: var(--mauve-d); min-width: 80px; flex-shrink: 0; }
+    .study-val { color: var(--text-2); }
+    .study-val.user-wrong { color: var(--wrong); }
+    .study-val.correct-ans { color: var(--correct); font-weight: 600; }
+
+    .logo-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--rose); margin-right: 6px; }
+
+    .category-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .pill {
+      padding: 4px 12px; border-radius: 99px; font-size: 0.75rem; font-weight: 600;
+      background: var(--pink); color: var(--mauve-d);
+    }
+
+    .q-count-display { font-size: 1.5rem; font-weight: 800; color: var(--mauve); text-align: center; }
+    .field { display: flex; flex-direction: column; gap: 8px; }
+    .divider { border: none; border-top: 1.5px solid var(--pink); margin: 4px 0; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════ SETUP SCREEN ════════════════════════════ -->
+<div id="screen-setup" class="screen active">
+  <div class="card" style="display:flex;flex-direction:column;gap:6px;">
+    <h1><span class="logo-dot"></span>OSRS Quiz</h1>
+    <p class="subtitle">Test your Old School RuneScape knowledge — capes, quests, slayer, diaries, and more.</p>
+    <div class="category-pills">
+      <span class="pill">🏅 Skill Capes</span>
+      <span class="pill">⚔️ Slayer Masters</span>
+      <span class="pill">📜 Quest Points</span>
+      <span class="pill">🧪 Skill Requirements</span>
+      <span class="pill">💀 Barrows</span>
+      <span class="pill">📋 Achievement Diaries</span>
+      <span class="pill">🗺️ Quest Trivia</span>
+    </div>
+  </div>
+
+  <div class="card" style="display:flex;flex-direction:column;gap:20px;">
+    <div class="field">
+      <label for="num-questions">Number of questions</label>
+      <input type="range" id="num-questions" min="5" max="250" value="20" step="5"
+        oninput="document.getElementById('q-count-display').textContent = this.value" />
+      <p class="q-count-display" id="q-count-display">20</p>
+    </div>
+
+    <hr class="divider" />
+
+    <button class="btn btn-primary btn-full" id="btn-start" style="font-size:1.05rem;padding:15px;">
+      Start Quiz →
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ QUIZ SCREEN ════════════════════════════ -->
+<div id="screen-quiz" class="screen">
+  <div style="display:flex;flex-direction:column;gap:6px;">
+    <div class="progress-wrap">
+      <div class="progress-bar" id="quiz-bar" style="width:0%"></div>
+    </div>
+    <p class="progress-label" id="quiz-counter">Question 1 of 20</p>
+  </div>
+
+  <div class="card" style="display:flex;flex-direction:column;gap:18px;">
+    <div class="q-header">
+      <span class="badge" id="q-type-badge">Multiple Choice</span>
+      <span class="badge" id="q-cat-badge" style="background:var(--peach);">Cape Perks</span>
+    </div>
+    <p class="question-text" id="question-text"></p>
+    <div id="answer-area"></div>
+    <div class="feedback" id="feedback"></div>
+    <button class="btn btn-primary btn-full" id="btn-next" style="display:none;">Next Question →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════ RESULTS SCREEN ══════════════════════════ -->
+<div id="screen-results" class="screen">
+  <div class="card" style="gap:12px;text-align:center;">
+    <p class="score-big" id="score-display">8/20</p>
+    <p class="score-sub" id="score-sub"></p>
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="btn-restart">↩ Retry</button>
+      <button class="btn btn-primary" id="btn-new">New Quiz</button>
+    </div>
+  </div>
+
+  <div id="study-guide-section" style="display:none;flex-direction:column;gap:14px;">
+    <div class="card">
+      <h2>📋 Study Guide</h2>
+      <p style="font-size:0.85rem;margin-top:6px;">Questions you missed — review these.</p>
+    </div>
+    <div class="study-list" id="study-list"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════
+// CSV LOADER
+// questions.csv columns: cat,type,question,options,answer,keywords,explanation
+// options and keywords use | as a separator within the field
+// ══════════════════════════════════════════════════════════════════════════
+
+function parseCSVLine(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      result.push(cur); cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+function parseCSV(text) {
+  const lines = text.split('\n').filter(l => l.trim());
+  const headers = parseCSVLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals = parseCSVLine(line);
+    const q = {};
+    headers.forEach((h, i) => q[h.trim()] = (vals[i] || '').trim());
+    q.options  = q.options  ? q.options.split('|').filter(Boolean)  : [];
+    q.keywords = q.keywords ? q.keywords.split('|').filter(Boolean) : [];
+    return q;
+  }).filter(q => q.type && q.question);
+}
+
+async function loadQuestions() {
+  try {
+    const r = await fetch('questions.csv');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return parseCSV(await r.text());
+  } catch (e) {
+    throw new Error(
+      'Could not load questions.csv. ' +
+      'Open this folder with a local server (e.g. run: npx serve .) rather than opening index.html directly as a file.'
+    );
+  }
+}
+
+// Populated on page load
+let ALL_QUESTIONS = [
+
+  // ── CAPE PERKS ──────────────────────────────────────────────────────────
+  {
+    cat: "Cape Perks",
+    type: "multiple_choice",
+    question: "What unique perk does the Cooking cape provide while worn?",
+    options: ["Food never burns while cooking", "Unlimited teleports to Cooks' Guild", "5% extra herbs from herb patches", "Acts as a chef's hat only"],
+    answer: "Food never burns while cooking",
+    explanation: "The Cooking cape ensures food is never burned. It also acts as a chef's hat, but never burning food is the main perk. Sold by the Head chef at the Cooks' Guild."
+  },
+  {
+    cat: "Cape Perks",
+    type: "multiple_choice",
+    question: "Which NPC sells the Agility cape, and where?",
+    options: ["Cap'n Izzy No-Beard at Brimhaven Agility Arena", "Pirate Pete at the Corsair Cove", "Master Fisher at Fishing Guild", "Agility tutor at Gnome Stronghold"],
+    answer: "Cap'n Izzy No-Beard at Brimhaven Agility Arena",
+    explanation: "Cap'n Izzy No-Beard sells the Agility cape. The cape can restore 100% run energy and give a stamina potion effect once per day."
+  },
+  {
+    cat: "Cape Perks",
+    type: "true_false",
+    question: "The Smithing cape, when worn, allows the coal bag to hold 36 coal instead of the normal 27.",
+    answer: "true",
+    explanation: "True. The Smithing cape increases the coal bag's capacity from 27 to 36. It also acts as goldsmith gauntlets. Sold by Thurgo near Mudskipper Point."
+  },
+  {
+    cat: "Cape Perks",
+    type: "multiple_choice",
+    question: "What does the Ranging cape act as when worn, by default?",
+    options: ["Ava's accumulator", "Ava's assembler", "Ava's attractor", "Ava's device"],
+    answer: "Ava's accumulator",
+    explanation: "The Ranging cape acts as Ava's accumulator. It can be upgraded to Ava's assembler by using Vorkath's head on it. Sold by the Armour salesman at the Ranging Guild."
+  },
+  {
+    cat: "Cape Perks",
+    type: "multiple_choice",
+    question: "The Prayer cape, when worn or in inventory, acts as which item?",
+    options: ["Holy wrench", "Ring of the gods (i)", "Zamorak's unholy book", "Blessed spirit shield"],
+    answer: "Holy wrench",
+    explanation: "The Prayer cape acts as a holy wrench, but it does NOT stack with a holy wrench or imbued ring of the gods. Sold by Brother Jered at Edgeville Monastery."
+  },
+  {
+    cat: "Cape Perks",
+    type: "multiple_choice",
+    question: "How many times per day can the Magic cape be used to change your spellbook?",
+    options: ["3", "5", "7", "Unlimited"],
+    answer: "5",
+    explanation: "The Magic cape allows players to permanently change their spellbook up to five times per day. Sold by Wizard Sinina at the Wizards' Guild."
+  },
+  {
+    cat: "Cape Perks",
+    type: "multiple_choice",
+    question: "Who sells the Max cape, and where are they located?",
+    options: ["Mac, west of the Warriors' Guild", "Duradel, in Shilo Village", "Wise Old Man, in Draynor Village", "The combat tutor, in Lumbridge"],
+    answer: "Mac, west of the Warriors' Guild",
+    explanation: "Mac sells the Max cape just west of the Warriors' Guild. It requires level 99 in all 24 skills. As of March 2026, 47,334 players have achieved this."
+  },
+  {
+    cat: "Cape Perks",
+    type: "true_false",
+    question: "The Max cape inherits all skillcape perks, including those of the Quest Point cape and Achievement Diary cape.",
+    answer: "false",
+    explanation: "False. The Max cape inherits all skillcape perks, but NOT the perks of the Quest Point cape, Achievement Diary cape, or Music cape."
+  },
+  {
+    cat: "Cape Perks",
+    type: "multiple_choice",
+    question: "What does the Defence cape do when worn?",
+    options: ["Acts as a ring of life (toggleable)", "Provides immunity to poison", "Doubles natural Hitpoints regen", "Acts as a holy wrench"],
+    answer: "Acts as a ring of life (toggleable)",
+    explanation: "The Defence cape acts as a ring of life when worn. This effect can be toggled on or off. Sold by the Melee combat tutor in Lumbridge."
+  },
+  {
+    cat: "Cape Perks",
+    type: "multiple_choice",
+    question: "The Runecraft cape prevents which item from degrading when being filled?",
+    options: ["Essence pouches", "Rune pouches", "Coal bags", "Herb sacks"],
+    answer: "Essence pouches",
+    explanation: "The Runecraft cape prevents essence pouches from degrading. It also allows access to any runic altar without talismans or tiaras. Sold by Aubury in south-east Varrock."
+  },
+  {
+    cat: "Cape Perks",
+    type: "multiple_choice",
+    question: "How many times per day can the Agility cape restore 100% run energy?",
+    options: ["Once", "Three times", "Five times", "Unlimited"],
+    answer: "Once",
+    explanation: "The Agility cape restores 100% run energy and gives the stamina potion effect once per day. It also functions as a substitute for a graceful cape."
+  },
+  {
+    cat: "Cape Perks",
+    type: "free_response",
+    question: "What items can be searched from the Fletching cape, up to three times per day?",
+    answer: "A mithril grapple and bronze crossbow",
+    keywords: ["mithril grapple", "bronze crossbow"],
+    explanation: "The Fletching cape can be searched for a mithril grapple and bronze crossbow up to three times each day. Sold by Hickton in Catherby."
+  },
+  {
+    cat: "Cape Perks",
+    type: "multiple_choice",
+    question: "The Farming cape gives a 5% boost to which specific activity?",
+    options: ["Base chance to save herb harvest lives", "Allotment yield", "Farming XP per action", "Tree patch growth speed"],
+    answer: "Base chance to save herb harvest lives",
+    explanation: "The Farming cape increases the base chance to save harvest lives and gain extra herbs from herb patches by 5%. Stacks with magic secateurs. Sold by Martin the Master Gardener in Draynor."
+  },
+  {
+    cat: "Cape Perks",
+    type: "multiple_choice",
+    question: "What does the Herblore cape allow Zahur in Nardah to do without completing the Hard Desert Diary?",
+    options: ["Create unfinished potions for 200 coins each", "Clean grimy herbs for free", "Note all clean herbs", "Decant all potions for free"],
+    answer: "Create unfinished potions for 200 coins each",
+    explanation: "The Herblore cape lets Zahur create unfinished potions for 200 coins each without the Hard Desert Diary. It also allows grimy herbs to be used directly and can be searched for a pestle and mortar."
+  },
+  {
+    cat: "Cape Perks",
+    type: "true_false",
+    question: "The Hitpoints cape's HP regen effect stacks with the Rapid Heal prayer.",
+    answer: "false",
+    explanation: "False. The Hitpoints cape doubles natural HP restoration but does NOT stack with Rapid Heal. It does stack with the regen bracelet. Sold by Surgeon General Tafani at Emir's Arena."
+  },
+  {
+    cat: "Cape Perks",
+    type: "multiple_choice",
+    question: "What does the Firemaking cape act as, both when equipped AND when in inventory?",
+    options: ["An inextinguishable light source", "A tinderbox substitute", "Warm clothing for Wintertodt only", "A pair of pyromancer gloves"],
+    answer: "An inextinguishable light source",
+    explanation: "The Firemaking cape is an inextinguishable light source whether equipped or in inventory. It also counts as warm clothing for the Wintertodt. Sold by Ignatius Vulcan south of Seers' Village."
+  },
+  {
+    cat: "Cape Perks",
+    type: "multiple_choice",
+    question: "The Attack cape perk removes which requirement when accessing cyclopes in the Warriors' Guild?",
+    options: ["Warrior guild tokens", "The minimum attack level", "Membership to the Warriors' Guild", "The need to defeat Kamfreena"],
+    answer: "Warrior guild tokens",
+    explanation: "The Attack cape removes the need for warrior guild tokens to access cyclopes in the Warriors' Guild. Sold by Ajjat at the Warriors' Guild."
+  },
+  {
+    cat: "Cape Perks",
+    type: "multiple_choice",
+    question: "What does the Thieving cape add to pickpocketing success rates?",
+    options: ["10% extra success chance", "15% extra success chance", "5% extra success chance", "20% extra success chance"],
+    answer: "10% extra success chance",
+    explanation: "The Thieving cape adds a 10% chance of success when pickpocketing. This stacks with the Easy, Medium, and Hard Ardougne Diary bonuses. Sold by Martin Thwait in Rogues' Den."
+  },
+  {
+    cat: "Cape Perks",
+    type: "true_false",
+    question: "The Slayer cape, when worn, gives a 10% chance of being offered the previous Slayer task when getting a new one.",
+    answer: "true",
+    explanation: "True. The Slayer cape provides a 10% chance to pick the previous task from any Slayer master. Sold by Duradel in Shilo Village."
+  },
+
+  // ── SLAYER MASTERS ──────────────────────────────────────────────────────
+  {
+    cat: "Slayer Masters",
+    type: "multiple_choice",
+    question: "What combat level is required to use Duradel as your Slayer master?",
+    options: ["85", "90", "100", "110"],
+    answer: "100",
+    explanation: "Duradel requires combat level 100 AND 50 Slayer — he's the only Slayer master with both a combat AND a Slayer level requirement."
+  },
+  {
+    cat: "Slayer Masters",
+    type: "multiple_choice",
+    question: "Which Slayer master gives the most base Slayer points per task?",
+    options: ["Duradel (15)", "Konar quo Maten (18)", "Nieve (12)", "Krystilia (25)"],
+    answer: "Konar quo Maten (18)",
+    explanation: "Konar gives 18 base points per task (20 with Elite Kourend & Kebos Diary). Krystilia gives 25 but only for Wilderness tasks with a separate counter."
+  },
+  {
+    cat: "Slayer Masters",
+    type: "multiple_choice",
+    question: "Where is the Slayer master Chaeldar located?",
+    options: ["Zanaris, by the Fairy Queen's throne", "Tree Gnome Stronghold", "Shilo Village", "Mount Karuulm"],
+    answer: "Zanaris, by the Fairy Queen's throne",
+    explanation: "Chaeldar is in Zanaris. She requires 70 combat and Lost City quest completion. She gives 10 base points per task."
+  },
+  {
+    cat: "Slayer Masters",
+    type: "true_false",
+    question: "Krystilia, the Edgeville Slayer master, requires a minimum combat level to assign tasks.",
+    answer: "false",
+    explanation: "False. Krystilia has no combat or Slayer level requirement. She assigns only Wilderness tasks and gives 25 base points per task — the highest of any Slayer master."
+  },
+  {
+    cat: "Slayer Masters",
+    type: "multiple_choice",
+    question: "What quest must be completed to unlock Spria as a Slayer master?",
+    options: ["A Porcine of Interest", "Priest in Peril", "While Guthix Sleeps", "The Restless Ghost"],
+    answer: "A Porcine of Interest",
+    explanation: "Spria is Turael's daughter in Draynor Village. She requires A Porcine of Interest and gives 0 points per task — same as Turael."
+  },
+  {
+    cat: "Slayer Masters",
+    type: "multiple_choice",
+    question: "Where is the Slayer master Vannaka located?",
+    options: ["Edgeville Dungeon, east of the Wilderness gate", "Burthorpe centre", "Draynor Village", "South of Falador"],
+    answer: "Edgeville Dungeon, east of the Wilderness gate",
+    explanation: "Vannaka is in Edgeville Dungeon. He requires 40 combat and gives 8 base Slayer points per task."
+  },
+  {
+    cat: "Slayer Masters",
+    type: "multiple_choice",
+    question: "After completing Monkey Madness II, who replaces Nieve as the Slayer master at Tree Gnome Stronghold?",
+    options: ["Steve", "Duradel", "Kuradal", "Achtryn"],
+    answer: "Steve",
+    explanation: "Steve replaces Nieve after Monkey Madness II. Similarly, Kuradal replaces Duradel and Achtryn temporarily replaces Mazchna after While Guthix Sleeps."
+  },
+  {
+    cat: "Slayer Masters",
+    type: "multiple_choice",
+    question: "What is Duradel's minimum Slayer level requirement — and is he the only master with this?",
+    options: ["50 Slayer; yes, he's the only master with a Slayer req", "50 Slayer; Konar also requires 50", "70 Slayer; he's the only master with a Slayer req", "No Slayer req; combat only"],
+    answer: "50 Slayer; yes, he's the only master with a Slayer req",
+    explanation: "Duradel requires 50 Slayer AND 100 combat. He is the only Slayer master in OSRS with a Slayer level requirement."
+  },
+  {
+    cat: "Slayer Masters",
+    type: "multiple_choice",
+    question: "How many base Slayer points does Konar quo Maten award per task with the Elite Kourend & Kebos Diary?",
+    options: ["15", "18", "20", "25"],
+    answer: "20",
+    explanation: "Konar gives 18 base points, which increases to 20 with the Elite Kourend & Kebos Diary. She also provides brimstone keys from assigned monsters."
+  },
+  {
+    cat: "Slayer Masters",
+    type: "true_false",
+    question: "A player with 99 Slayer can show their Slayer cape to bypass combat level requirements for any Slayer master.",
+    answer: "true",
+    explanation: "True. The combat level requirement for all Slayer masters can be bypassed by achieving 99 Slayer and showing the Slayer cape to the master."
+  },
+
+  // ── QUEST POINTS ────────────────────────────────────────────────────────
+  {
+    cat: "Quest Points",
+    type: "multiple_choice",
+    question: "How many quest points are required to start Dragon Slayer II — the highest QP requirement in the game?",
+    options: ["175", "180", "200", "250"],
+    answer: "200",
+    explanation: "Dragon Slayer II requires 200 quest points to start — the highest of any quest. By contrast, While Guthix Sleeps requires 180."
+  },
+  {
+    cat: "Quest Points",
+    type: "multiple_choice",
+    question: "How many total quest points are available in Old School RuneScape?",
+    options: ["295", "315", "335", "350"],
+    answer: "335",
+    explanation: "There are 335 total QP: 46 from F2P quests and 289 from members quests. All 335 are needed for the Quest Point cape."
+  },
+  {
+    cat: "Quest Points",
+    type: "true_false",
+    question: "Recipe for Disaster awards a total of 10 quest points across all its sub-quests.",
+    answer: "true",
+    explanation: "True. Recipe for Disaster has 10 parts (intro + 8 subquests + finale), each awarding 1 QP — the most of any single quest in OSRS."
+  },
+  {
+    cat: "Quest Points",
+    type: "multiple_choice",
+    question: "How many quest points are needed to start Legends' Quest?",
+    options: ["75", "100", "107", "150"],
+    answer: "107",
+    explanation: "Legends' Quest requires 107 QP. Completing it grants access to the Legends' Guild — and the Quest Point cape teleports there."
+  },
+  {
+    cat: "Quest Points",
+    type: "multiple_choice",
+    question: "What is unlocked every 50 quest points, up to a maximum of 6?",
+    options: ["A Slayer block slot", "An extra Slayer skip", "A POH room slot", "An extra bank tab"],
+    answer: "A Slayer block slot",
+    explanation: "Every 50 QP unlock a Slayer block slot, up to 6 at 300 QP. The Quest Point cape gives a 7th block slot."
+  },
+  {
+    cat: "Quest Points",
+    type: "multiple_choice",
+    question: "How many quest points are required to enter the Champions' Guild and start Dragon Slayer I?",
+    options: ["20", "28", "32", "40"],
+    answer: "32",
+    explanation: "32 QP are needed to enter the Champions' Guild, which is where Dragon Slayer I is started."
+  },
+  {
+    cat: "Quest Points",
+    type: "multiple_choice",
+    question: "Which two F2P quests are tied for the most quest points awarded (5 QP each)?",
+    options: ["Romeo & Juliet and Goblin Diplomacy", "Dragon Slayer I and Black Knights' Fortress", "Demon Slayer and Prince Ali Rescue", "Ernest the Chicken and Goblin Diplomacy"],
+    answer: "Romeo & Juliet and Goblin Diplomacy",
+    explanation: "Both Romeo & Juliet and Goblin Diplomacy award 5 QP — tied for the most of any F2P quest. Dragon Slayer I only awards 2 QP."
+  },
+  {
+    cat: "Quest Points",
+    type: "multiple_choice",
+    question: "How many quest points are needed to start Swan Song, which unlocks the Piscatoris Fishing Colony?",
+    options: ["75", "100", "107", "150"],
+    answer: "100",
+    explanation: "Swan Song requires 100 QP and gives access to the Piscatoris Fishing Colony and its monkfish fishing."
+  },
+  {
+    cat: "Quest Points",
+    type: "multiple_choice",
+    question: "How many quest points are required to start While Guthix Sleeps?",
+    options: ["150", "175", "180", "200"],
+    answer: "180",
+    explanation: "While Guthix Sleeps requires 180 QP. It's the second-highest QP requirement after Dragon Slayer II (200)."
+  },
+  {
+    cat: "Quest Points",
+    type: "true_false",
+    question: "Having maximum quest points (335) reduces the cost of Nightmare Zone Rumble mode by 10,000 coins.",
+    answer: "true",
+    explanation: "True. Max QP reduces NMZ custom Rumble mode by 10,000 coins — to 12,000 for normal and 16,000 for hard mode."
+  },
+
+  // ── SKILL REQUIREMENTS ──────────────────────────────────────────────────
+  {
+    cat: "Skill Requirements",
+    type: "multiple_choice",
+    question: "What Agility level (non-boostable) is required to complete Song of the Elves?",
+    options: ["65", "68", "70", "72"],
+    answer: "70",
+    explanation: "Song of the Elves requires 70 Agility AND 70 Construction — both non-boostable — along with several other high skill requirements."
+  },
+  {
+    cat: "Skill Requirements",
+    type: "multiple_choice",
+    question: "Which quest is the only one with a raw combat level requirement — and what is it?",
+    options: ["Dream Mentor — 85 combat", "Song of the Elves — 100 combat", "Monkey Madness II — 90 combat", "Dragon Slayer II — 100 combat"],
+    answer: "Dream Mentor — 85 combat",
+    explanation: "Dream Mentor is the only OSRS quest with a raw combat level requirement: 85 combat. All other quests use individual skill requirements."
+  },
+  {
+    cat: "Skill Requirements",
+    type: "multiple_choice",
+    question: "What Defence level is required for King's Ransom?",
+    options: ["55", "60", "65", "70"],
+    answer: "65",
+    explanation: "King's Ransom requires 65 Defence — notably high for a single-skill gate."
+  },
+  {
+    cat: "Skill Requirements",
+    type: "true_false",
+    question: "The Agility requirement for Troll Romance (28 Agility) is boostable.",
+    answer: "false",
+    explanation: "False. Troll Romance has a non-boostable 28 Agility requirement. Many agility requirements in quests cannot be boosted."
+  },
+  {
+    cat: "Skill Requirements",
+    type: "multiple_choice",
+    question: "What Cooking level is required to start Heroes' Quest?",
+    options: ["45", "53", "60", "65"],
+    answer: "53",
+    explanation: "Heroes' Quest requires 53 Cooking (boostable). It also requires 55 QP and completion of several prerequisite quests."
+  },
+  {
+    cat: "Skill Requirements",
+    type: "multiple_choice",
+    question: "What Agility level is required (non-boostable) for Secrets of the North?",
+    options: ["60", "65", "69", "72"],
+    answer: "69",
+    explanation: "Secrets of the North requires 69 Agility, non-boostable — one of the highest Agility requirements in any OSRS quest."
+  },
+  {
+    cat: "Skill Requirements",
+    type: "multiple_choice",
+    question: "What Crafting level does Monkey Madness II require?",
+    options: ["60", "65", "70", "75"],
+    answer: "70",
+    explanation: "Monkey Madness II requires 70 Crafting (non-boostable), alongside 55 Agility and 69 Hunter (both non-boostable)."
+  },
+  {
+    cat: "Skill Requirements",
+    type: "multiple_choice",
+    question: "What Construction level is required for Desert Treasure II - The Fallen Empire?",
+    options: ["50", "55", "60", "65"],
+    answer: "60",
+    explanation: "Desert Treasure II requires 60 Construction (non-boostable). It also requires completing His Faithful Servants miniquest."
+  },
+  {
+    cat: "Skill Requirements",
+    type: "multiple_choice",
+    question: "What is the Agility requirement for Making Friends with My Arm?",
+    options: ["60", "64", "68", "70"],
+    answer: "68",
+    explanation: "Making Friends with My Arm requires 68 Agility (boostable) and 35 Construction (boostable). It continues the Troll quest series."
+  },
+  {
+    cat: "Skill Requirements",
+    type: "true_false",
+    question: "The quest Regicide has a boostable Agility requirement of 56.",
+    answer: "true",
+    explanation: "True. Regicide requires 56 Agility (boostable). It's part of the Elf quest series and leads to the underground pass to Tirannwn."
+  },
+
+  // ── BARROWS ─────────────────────────────────────────────────────────────
+  {
+    cat: "Barrows",
+    type: "multiple_choice",
+    question: "Which of the six Barrows brothers uses Ranged attacks?",
+    options: ["Karil the Tainted", "Ahrim the Blighted", "Verac the Defiled", "Guthan the Infested"],
+    answer: "Karil the Tainted",
+    explanation: "Karil the Tainted is the Ranged brother, using a crossbow with bolt racks. Ahrim is the Magic brother."
+  },
+  {
+    cat: "Barrows",
+    type: "multiple_choice",
+    question: "Which Barrows brother uses Magic attacks?",
+    options: ["Ahrim the Blighted", "Karil the Tainted", "Dharok the Wretched", "Torag the Corrupted"],
+    answer: "Ahrim the Blighted",
+    explanation: "Ahrim the Blighted uses Magic and wields a staff. His set includes: hood, robetop, robeskirt, and staff."
+  },
+  {
+    cat: "Barrows",
+    type: "true_false",
+    question: "The Barrows brothers count toward Ghost Slayer tasks because of their ghostly appearance.",
+    answer: "false",
+    explanation: "False. Despite looking ghostly, the brothers are wights — they count toward Boss Slayer tasks. Crumble Undead cannot be used on them."
+  },
+  {
+    cat: "Barrows",
+    type: "multiple_choice",
+    question: "Which OSRS lore character gave the Barrows brothers their power and cursed them?",
+    options: ["Sliske", "Lucien", "Zamorak", "Azzanadra"],
+    answer: "Sliske",
+    explanation: "Sliske (a Mahjarrat) was the mysterious stranger who gave the brothers power, then cast an ancient spell reanimating them as wights."
+  },
+  {
+    cat: "Barrows",
+    type: "multiple_choice",
+    question: "What must be started before a player can dig into the Barrows crypts?",
+    options: ["His Faithful Servants miniquest", "Priest in Peril quest", "In Aid of the Myreque", "Shades of Mort'ton"],
+    answer: "His Faithful Servants miniquest",
+    explanation: "His Faithful Servants must be started to dig into the crypts. Priest in Peril is required just to enter Morytania."
+  },
+  {
+    cat: "Barrows",
+    type: "true_false",
+    question: "Completing the Hard Morytania Achievement Diary rewards more runes from the Barrows chest.",
+    answer: "true",
+    explanation: "True. The Hard Morytania Diary causes players to receive more runes from the Barrows chest."
+  },
+  {
+    cat: "Barrows",
+    type: "multiple_choice",
+    question: "Which Barrows brother's tomb offers the clearest view of the Meiyerditch Laboratories?",
+    options: ["Dharok the Wretched", "Ahrim the Blighted", "Guthan the Infested", "Verac the Defiled"],
+    answer: "Dharok the Wretched",
+    explanation: "Dharok's tomb has the clearest view of the Meiyerditch Laboratories. Underground areas in OSRS are technically located above the Wilderness on the world map."
+  },
+  {
+    cat: "Barrows",
+    type: "multiple_choice",
+    question: "What Agility level unlocks the dry stone wall shortcut on the south-west side of the Barrows mounds?",
+    options: ["60", "65", "70", "72"],
+    answer: "72",
+    explanation: "Level 72 Agility unlocks the dry stone wall shortcut near the Barrows. The best teleport is the Arceuus Barrows Teleport at level 83 Magic."
+  },
+
+  // ── ACHIEVEMENT DIARIES ─────────────────────────────────────────────────
+  {
+    cat: "Achievement Diaries",
+    type: "multiple_choice",
+    question: "How many Achievement Diary regions are there in Old School RuneScape?",
+    options: ["10", "12", "14", "16"],
+    answer: "12",
+    explanation: "There are 12 diary regions: Ardougne, Desert, Falador, Fremennik, Kandarin, Karamja, Kourend & Kebos, Lumbridge & Draynor, Morytania, Varrock, Western Provinces, and Wilderness."
+  },
+  {
+    cat: "Achievement Diaries",
+    type: "multiple_choice",
+    question: "Who sells the Achievement Diary cape, and where?",
+    options: ["Twiggy O'Korn in Draynor Village", "Wise Old Man in Draynor Village", "Hatius Cosaintus in Lumbridge", "Toby in Varrock"],
+    answer: "Twiggy O'Korn in Draynor Village",
+    explanation: "Twiggy O'Korn in Draynor Village sells the Achievement Diary cape for 99,000 coins after completing all 12 diaries."
+  },
+  {
+    cat: "Achievement Diaries",
+    type: "multiple_choice",
+    question: "What is the highest Fishing level required for any Achievement Diary task?",
+    options: ["90", "93", "95", "96"],
+    answer: "96",
+    explanation: "The Morytania Elite Diary requires Fishing 96 — the highest Fishing requirement of any diary task."
+  },
+  {
+    cat: "Achievement Diaries",
+    type: "multiple_choice",
+    question: "Which Achievement Diary requires the highest Slayer level for its Elite tier (95 Slayer)?",
+    options: ["Kourend & Kebos", "Western Provinces", "Fremennik", "Wilderness"],
+    answer: "Kourend & Kebos",
+    explanation: "The Kourend & Kebos Diary requires Slayer 95 for its Elite tier — the highest Slayer requirement of any diary."
+  },
+  {
+    cat: "Achievement Diaries",
+    type: "multiple_choice",
+    question: "How many total Achievement Diary tasks are there across all 12 regions?",
+    options: ["320", "420", "492", "550"],
+    answer: "492",
+    explanation: "There are 492 tasks spread across all 12 Achievement Diary regions in Old School RuneScape."
+  },
+  {
+    cat: "Achievement Diaries",
+    type: "true_false",
+    question: "Elite diary tasks can require levels into the 90s, while Easy tasks cap at around level 40.",
+    answer: "true",
+    explanation: "True. Easy diary tasks go up to ~level 40, Medium up to ~65, Hard up to ~75, and Elite tasks go into the 90s (e.g., Fishing 96, Magic 96, Slayer 95)."
+  },
+  {
+    cat: "Achievement Diaries",
+    type: "multiple_choice",
+    question: "What is the Wilderness Diary's highest magic requirement for its Elite tier?",
+    options: ["90", "93", "94", "96"],
+    answer: "96",
+    explanation: "The Wilderness Elite Diary requires Magic 96 — tied with Morytania's Fishing 96 for the highest single-skill requirement in any diary."
+  },
+
+  // ── QUEST TRIVIA ────────────────────────────────────────────────────────
+  {
+    cat: "Quest Trivia",
+    type: "multiple_choice",
+    question: "Recipe for Disaster was the 100th quest released in RuneScape. Which quest is it a sequel to?",
+    options: ["Cook's Assistant", "The Grand Tree", "Monkey Madness I", "Legends' Quest"],
+    answer: "Cook's Assistant",
+    explanation: "Recipe for Disaster is a sequel to Cook's Assistant. The villain is the Culinaromancer. It was released on 15 March 2006."
+  },
+  {
+    cat: "Quest Trivia",
+    type: "multiple_choice",
+    question: "What miniquest is a prerequisite for both Horror from the Deep AND Scorpion Catcher?",
+    options: ["Alfred Grimhand's Barcrawl", "Enter the Abyss", "Skippy and the Mogres", "Curse of the Empty Lord"],
+    answer: "Alfred Grimhand's Barcrawl",
+    explanation: "Alfred Grimhand's Barcrawl (a miniquest, no QP awarded) is required for Horror from the Deep and Scorpion Catcher."
+  },
+  {
+    cat: "Quest Trivia",
+    type: "multiple_choice",
+    question: "Which F2P quest was the newest as of February 2026?",
+    options: ["The Ides of Milk", "Learning the Ropes", "Below Ice Mountain", "The Corsair Curse"],
+    answer: "The Ides of Milk",
+    explanation: "The Ides of Milk was released 25 February 2026. Learning the Ropes (quest #0) was released in October 2025 as a short tutorial quest."
+  },
+  {
+    cat: "Quest Trivia",
+    type: "true_false",
+    question: "The miniquest Enter the Abyss is required before starting Devious Minds.",
+    answer: "true",
+    explanation: "True. Enter the Abyss is required for Devious Minds, Temple of the Eye, and Wanted! — despite being just a miniquest with no QP."
+  },
+  {
+    cat: "Quest Trivia",
+    type: "multiple_choice",
+    question: "Which miniquests are required specifically for Desert Treasure II - The Fallen Empire?",
+    options: ["His Faithful Servants", "Curse of the Empty Lord", "Enter the Abyss", "Skippy and the Mogres"],
+    answer: "His Faithful Servants",
+    explanation: "His Faithful Servants must be completed for Desert Treasure II. The General's Shadow and Curse of the Empty Lord are required for Secrets of the North."
+  },
+  {
+    cat: "Quest Trivia",
+    type: "multiple_choice",
+    question: "How many quest points does the miniquest Alfred Grimhand's Barcrawl award?",
+    options: ["0 — it's a miniquest", "1", "2", "3"],
+    answer: "0 — it's a miniquest",
+    explanation: "Miniquests in OSRS award no quest points. However, some (like Alfred Grimhand's Barcrawl) are required as prerequisites for full quests that do award QP."
+  },
+  {
+    cat: "Quest Trivia",
+    type: "multiple_choice",
+    question: "What quest was assigned the unusual number '0' when released in October 2025?",
+    options: ["Learning the Ropes", "The Ides of Milk", "Tutorial Island", "Doric's Quest"],
+    answer: "Learning the Ropes",
+    explanation: "Learning the Ropes was released as quest #0 in October 2025 — a Very Short Novice tutorial quest awarding 1 QP."
+  },
+  {
+    cat: "Quest Trivia",
+    type: "true_false",
+    question: "The quest Legends' Quest is the longest quest in OSRS at Master difficulty.",
+    answer: "true",
+    explanation: "True. Legends' Quest is a Master difficulty, Long quest awarding 4 QP. It was released 20 August 2003."
+  },
+];
+
+// ══════════════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════════════
+const state = {
+  questions: [],
+  currentIndex: 0,
+  score: 0,
+  wrongAnswers: [],
+  answered: false,
+  numQuestions: 20,
+};
+
+// ══════════════════════════════════════════════════════════════════════════
+// AUDIO
+// ══════════════════════════════════════════════════════════════════════════
+function playCorrect() {
+  try {
+    const ctx = new AudioContext();
+    [[523.25, 0], [659.25, 0.1], [783.99, 0.2]].forEach(([freq, t]) => {
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.connect(g); g.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = freq;
+      g.gain.setValueAtTime(0, ctx.currentTime + t);
+      g.gain.linearRampToValueAtTime(0.22, ctx.currentTime + t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.35);
+      osc.start(ctx.currentTime + t); osc.stop(ctx.currentTime + t + 0.35);
+    });
+  } catch(e) {}
+}
+
+function playWrong() {
+  try {
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.connect(g); g.connect(ctx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(140, ctx.currentTime + 0.28);
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.28);
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// SCREENS
+// ══════════════════════════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// QUIZ LOGIC
+// ══════════════════════════════════════════════════════════════════════════
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startQuiz() {
+  const n = parseInt(document.getElementById('num-questions').value) || 20;
+  state.numQuestions = Math.min(n, ALL_QUESTIONS.length);
+  state.questions    = shuffle(ALL_QUESTIONS).slice(0, state.numQuestions);
+  state.currentIndex = 0;
+  state.score        = 0;
+  state.wrongAnswers = [];
+  // Update slider max to reflect actual question count
+  document.getElementById('num-questions').max = ALL_QUESTIONS.length;
+  displayQuestion(0);
+  showScreen('quiz');
+}
+
+function checkAnswer(question, userAnswer) {
+  const ua = userAnswer.trim().toLowerCase();
+  const ca = String(question.answer).trim().toLowerCase();
+  if (question.type === 'multiple_choice') return ua === ca;
+  if (question.type === 'true_false') {
+    const uaBool = ['true','t','yes','correct'].includes(ua);
+    return uaBool === (ca === 'true');
+  }
+  if (question.type === 'free_response') {
+    const kws = (question.keywords || []).map(k => k.toLowerCase());
+    if (!kws.length) return ua.includes(ca.slice(0, 20));
+    const matched = kws.filter(k => ua.includes(k)).length;
+    return matched >= Math.max(1, Math.ceil(kws.length / 2));
+  }
+  return false;
+}
+
+function displayQuestion(index) {
+  const q = state.questions[index];
+  state.answered = false;
+
+  const pct = Math.round((index / state.questions.length) * 100);
+  document.getElementById('quiz-bar').style.width = pct + '%';
+  document.getElementById('quiz-counter').textContent =
+    `Question ${index + 1} of ${state.questions.length}`;
+
+  const badgeMap = { multiple_choice:'Multiple Choice', true_false:'True or False', free_response:'Free Response' };
+  document.getElementById('q-type-badge').textContent = badgeMap[q.type] || q.type;
+  document.getElementById('q-cat-badge').textContent  = q.cat || '';
+
+  document.getElementById('question-text').textContent = q.question;
+
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback'; fb.innerHTML = '';
+  document.getElementById('btn-next').style.display = 'none';
+
+  const area = document.getElementById('answer-area');
+  area.innerHTML = '';
+
+  if (q.type === 'multiple_choice') {
+    const list = document.createElement('div');
+    list.className = 'options-list';
+    shuffle(q.options).forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.textContent = opt;
+      btn.addEventListener('click', () => submitAnswer(opt, btn, list));
+      list.appendChild(btn);
+    });
+    area.appendChild(list);
+  } else if (q.type === 'true_false') {
+    const list = document.createElement('div');
+    list.className = 'options-list';
+    ['True', 'False'].forEach(val => {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.textContent = val;
+      btn.addEventListener('click', () => submitAnswer(val.toLowerCase(), btn, list));
+      list.appendChild(btn);
+    });
+    area.appendChild(list);
+  } else {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
+    const ta = document.createElement('textarea');
+    ta.placeholder = 'Type your answer here…';
+    const sbtn = document.createElement('button');
+    sbtn.className = 'btn btn-primary';
+    sbtn.textContent = 'Submit Answer';
+    sbtn.addEventListener('click', () => {
+      const val = ta.value.trim(); if (!val) return;
+      sbtn.disabled = true; ta.disabled = true;
+      submitAnswer(val, null, null);
+    });
+    wrap.appendChild(ta); wrap.appendChild(sbtn);
+    area.appendChild(wrap);
+  }
+}
+
+function submitAnswer(userAnswer, clickedBtn, list) {
+  if (state.answered) return;
+  state.answered = true;
+
+  const q = state.questions[state.currentIndex];
+  const correct = checkAnswer(q, userAnswer);
+
+  if (list) {
+    list.querySelectorAll('.option-btn').forEach(b => {
+      b.disabled = true;
+      const txt = b.textContent.toLowerCase();
+      const ans = q.answer.toLowerCase();
+      if (txt === ans || (q.type === 'true_false' && txt === ans)) b.classList.add('correct');
+    });
+    if (clickedBtn && !correct) clickedBtn.classList.add('wrong');
+  }
+
+  const fb = document.getElementById('feedback');
+  fb.className = 'feedback show ' + (correct ? 'correct' : 'wrong');
+
+  if (q.type === 'free_response') {
+    const kwLine = (q.keywords||[]).length
+      ? `<p style="margin-top:6px;font-size:0.82rem;opacity:0.85;">Key terms: <em>${q.keywords.join(', ')}</em></p>` : '';
+    fb.innerHTML = `
+      <div class="feedback-label">${correct ? '✓ Correct!' : '✗ Needs work'}</div>
+      <p><strong>Model answer:</strong> ${esc(q.answer)}</p>
+      ${kwLine}
+      <p style="margin-top:6px;">${esc(q.explanation||'')}</p>`;
+  } else {
+    fb.innerHTML = `
+      <div class="feedback-label">${correct ? '✓ Correct!' : '✗ Incorrect'}</div>
+      ${!correct ? `<p><strong>Correct answer:</strong> ${esc(q.answer)}</p>` : ''}
+      <p style="margin-top:4px;">${esc(q.explanation||'')}</p>`;
+  }
+
+  if (correct) { state.score++; playCorrect(); }
+  else {
+    playWrong();
+    state.wrongAnswers.push({ q, userAnswer, correctAnswer: q.answer });
+  }
+
+  const nextBtn = document.getElementById('btn-next');
+  const isLast  = state.currentIndex === state.questions.length - 1;
+  nextBtn.textContent = isLast ? 'See Results →' : 'Next Question →';
+  nextBtn.style.display = 'block';
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// RESULTS
+// ══════════════════════════════════════════════════════════════════════════
+function showResults() {
+  const total = state.questions.length, score = state.score;
+  const pct   = Math.round((score / total) * 100);
+  document.getElementById('score-display').textContent = `${score} / ${total}`;
+  const emoji = pct===100?'🌟':pct>=80?'✨':pct>=60?'📖':'💪';
+  document.getElementById('score-sub').textContent = `${emoji} ${pct}% — ${scoreMsg(pct)}`;
+
+  const section = document.getElementById('study-guide-section');
+  const list    = document.getElementById('study-list');
+  list.innerHTML = '';
+
+  if (state.wrongAnswers.length > 0) {
+    section.style.display = 'flex';
+    state.wrongAnswers.forEach(({ q, userAnswer, correctAnswer }) => {
+      const item = document.createElement('div');
+      item.className = 'study-item';
+      item.innerHTML = `
+        <p class="study-q">${esc(q.question)}</p>
+        <div class="study-row">
+          <span class="study-label">Your answer:</span>
+          <span class="study-val user-wrong">${esc(userAnswer||'(no answer)')}</span>
+        </div>
+        <div class="study-row">
+          <span class="study-label">Correct:</span>
+          <span class="study-val correct-ans">${esc(correctAnswer)}</span>
+        </div>
+        ${q.explanation?`<div class="study-row"><span class="study-label">Why:</span><span class="study-val">${esc(q.explanation)}</span></div>`:''}
+      `;
+      list.appendChild(item);
+    });
+  } else {
+    section.style.display = 'none';
+  }
+  showScreen('results');
+}
+
+function scoreMsg(p) {
+  if (p===100) return 'Perfect score! You\'re practically an OSRS wiki.';
+  if (p>=90)  return 'Outstanding! Near flawless.';
+  if (p>=80)  return 'Great work! High level stuff.';
+  if (p>=70)  return 'Solid! A few more runs and you\'ll max.';
+  if (p>=60)  return 'Getting there — review that study guide.';
+  if (p>=40)  return 'Keep grinding. Check the wiki.';
+  return 'Time to hit the books. Or the wiki. Mostly the wiki.';
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// UTIL
+// ══════════════════════════════════════════════════════════════════════════
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// INIT — load CSV then enable the start button
+// ══════════════════════════════════════════════════════════════════════════
+const btnStart = document.getElementById('btn-start');
+btnStart.disabled = true;
+btnStart.textContent = 'Loading questions…';
+
+loadQuestions().then(qs => {
+  ALL_QUESTIONS = qs;
+  document.getElementById('num-questions').max = qs.length;
+  btnStart.disabled = false;
+  btnStart.textContent = `Start Quiz →`;
+}).catch(err => {
+  btnStart.textContent = '⚠ Failed to load questions.csv';
+  btnStart.disabled = true;
+  // Show error below the button
+  const note = document.createElement('p');
+  note.style.cssText = 'color:var(--wrong);font-size:0.82rem;margin-top:8px;line-height:1.5;';
+  note.textContent = err.message;
+  btnStart.parentNode.appendChild(note);
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// EVENTS
+// ══════════════════════════════════════════════════════════════════════════
+btnStart.addEventListener('click', startQuiz);
+
+document.getElementById('btn-next').addEventListener('click', () => {
+  state.currentIndex++;
+  if (state.currentIndex >= state.questions.length) showResults();
+  else displayQuestion(state.currentIndex);
+});
+
+document.getElementById('btn-restart').addEventListener('click', () => {
+  state.currentIndex = 0; state.score = 0; state.wrongAnswers = [];
+  state.questions = shuffle(state.questions);
+  displayQuestion(0);
+  showScreen('quiz');
+});
+
+document.getElementById('btn-new').addEventListener('click', () => showScreen('setup'));
+</script>
+</body>
+</html>
