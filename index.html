@@ -134,6 +134,28 @@
       background: var(--pink); color: var(--mauve-d);
     }
 
+    /* Category filter */
+    .cat-filter-wrap { display: flex; flex-direction: column; gap: 10px; }
+    .cat-toggle-row { display: flex; gap: 8px; align-items: center; }
+    .cat-toggle-btn {
+      font-size: 0.78rem; font-weight: 600; padding: 4px 12px;
+      border-radius: 99px; border: none; cursor: pointer;
+      background: var(--peach); color: var(--mauve-d);
+      transition: background 0.15s;
+    }
+    .cat-toggle-btn:hover { background: var(--pink); }
+    .cat-pills-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .cat-pill {
+      padding: 5px 13px; border-radius: 99px; font-size: 0.78rem; font-weight: 600;
+      border: 1.5px solid transparent; cursor: pointer;
+      background: var(--peach); color: var(--mauve-d);
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      user-select: none;
+    }
+    .cat-pill:hover { background: var(--pink); }
+    .cat-pill.selected { background: var(--mauve); color: var(--white); border-color: var(--mauve-d); }
+    .cat-count { font-size: 0.8rem; color: var(--text-2); }
+
     .q-count-display { font-size: 1.5rem; font-weight: 800; color: var(--mauve); text-align: center; }
     .field { display: flex; flex-direction: column; gap: 8px; }
     .divider { border: none; border-top: 1.5px solid var(--pink); margin: 4px 0; }
@@ -146,18 +168,27 @@
   <div class="card" style="display:flex;flex-direction:column;gap:6px;">
     <h1><span class="logo-dot"></span>OSRS Quiz</h1>
     <p class="subtitle">Test your Old School RuneScape knowledge — capes, quests, slayer, diaries, and more.</p>
-    <div class="category-pills">
-      <span class="pill">🏅 Skill Capes</span>
-      <span class="pill">⚔️ Slayer Masters</span>
-      <span class="pill">📜 Quest Points</span>
-      <span class="pill">🧪 Skill Requirements</span>
-      <span class="pill">💀 Barrows</span>
-      <span class="pill">📋 Achievement Diaries</span>
-      <span class="pill">🗺️ Quest Trivia</span>
-    </div>
   </div>
 
   <div class="card" style="display:flex;flex-direction:column;gap:20px;">
+
+    <!-- Category filter -->
+    <div class="field">
+      <label>Categories <span class="cat-count" id="cat-count"></span></label>
+      <div class="cat-filter-wrap">
+        <div class="cat-toggle-row">
+          <button class="cat-toggle-btn" id="btn-all-cats">Select all</button>
+          <button class="cat-toggle-btn" id="btn-none-cats">Clear</button>
+        </div>
+        <div class="cat-pills-grid" id="cat-pills-grid">
+          <!-- populated by JS after CSV loads -->
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- Question count slider -->
     <div class="field">
       <label for="num-questions">Number of questions</label>
       <input type="range" id="num-questions" min="5" max="250" value="20" step="5"
@@ -909,15 +940,67 @@ function shuffle(arr) {
   return a;
 }
 
+// ── Category filter ────────────────────────────────────────────────────────
+let selectedCats = new Set(); // empty = all
+
+function getFilteredQuestions() {
+  if (selectedCats.size === 0) return ALL_QUESTIONS;
+  return ALL_QUESTIONS.filter(q => selectedCats.has(q.cat));
+}
+
+function updateCatCount() {
+  const pool = getFilteredQuestions();
+  const total = ALL_QUESTIONS.length;
+  const el = document.getElementById('cat-count');
+  if (selectedCats.size === 0) {
+    el.textContent = `(${total} questions)`;
+  } else {
+    el.textContent = `(${pool.length} of ${total} questions)`;
+  }
+  // update slider max
+  const slider = document.getElementById('num-questions');
+  slider.max = pool.length;
+  if (parseInt(slider.value) > pool.length) {
+    slider.value = pool.length;
+    document.getElementById('q-count-display').textContent = pool.length;
+  }
+}
+
+function buildCatPills(categories) {
+  const grid = document.getElementById('cat-pills-grid');
+  grid.innerHTML = '';
+  categories.forEach(cat => {
+    const pill = document.createElement('button');
+    pill.className = 'cat-pill';
+    pill.textContent = cat;
+    pill.dataset.cat = cat;
+    pill.addEventListener('click', () => {
+      if (selectedCats.has(cat)) {
+        selectedCats.delete(cat);
+        pill.classList.remove('selected');
+      } else {
+        selectedCats.add(cat);
+        pill.classList.add('selected');
+      }
+      updateCatCount();
+    });
+    grid.appendChild(pill);
+  });
+  updateCatCount();
+}
+
 function startQuiz() {
+  const pool = getFilteredQuestions();
+  if (pool.length === 0) {
+    alert('No questions match the selected categories. Please select at least one.');
+    return;
+  }
   const n = parseInt(document.getElementById('num-questions').value) || 20;
-  state.numQuestions = Math.min(n, ALL_QUESTIONS.length);
-  state.questions    = shuffle(ALL_QUESTIONS).slice(0, state.numQuestions);
+  state.numQuestions = Math.min(n, pool.length);
+  state.questions    = shuffle(pool).slice(0, state.numQuestions);
   state.currentIndex = 0;
   state.score        = 0;
   state.wrongAnswers = [];
-  // Update slider max to reflect actual question count
-  document.getElementById('num-questions').max = ALL_QUESTIONS.length;
   displayQuestion(0);
   showScreen('quiz');
 }
@@ -1114,9 +1197,24 @@ btnStart.textContent = 'Loading questions…';
 
 loadQuestions().then(qs => {
   ALL_QUESTIONS = qs;
+  // Build sorted unique category list
+  const cats = [...new Set(qs.map(q => q.cat))].sort();
+  buildCatPills(cats);
   document.getElementById('num-questions').max = qs.length;
   btnStart.disabled = false;
   btnStart.textContent = `Start Quiz →`;
+
+  // Select all / Clear buttons
+  document.getElementById('btn-all-cats').addEventListener('click', () => {
+    cats.forEach(c => selectedCats.add(c));
+    document.querySelectorAll('.cat-pill').forEach(p => p.classList.add('selected'));
+    updateCatCount();
+  });
+  document.getElementById('btn-none-cats').addEventListener('click', () => {
+    selectedCats.clear();
+    document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('selected'));
+    updateCatCount();
+  });
 }).catch(err => {
   btnStart.textContent = '⚠ Failed to load questions.csv';
   btnStart.disabled = true;
