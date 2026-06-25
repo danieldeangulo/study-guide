@@ -1005,6 +1005,50 @@ function startQuiz() {
   showScreen('quiz');
 }
 
+function normalize(s) {
+  return s.toLowerCase()
+    .replace(/['']/g, "'")
+    .replace(/[^a-z0-9\s']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokenize(s) {
+  return normalize(s).split(' ').filter(Boolean);
+}
+
+// Returns true if any meaningful token from needle appears in haystack tokens
+function tokenOverlap(needleStr, haystackStr) {
+  const STOP = new Set(['the','a','an','of','in','is','are','was','were','and','or','to','it','its']);
+  const needleToks = tokenize(needleStr).filter(t => t.length > 2 && !STOP.has(t));
+  const haystackToks = new Set(tokenize(haystackStr));
+  if (!needleToks.length) return normalize(haystackStr).includes(normalize(needleStr));
+  return needleToks.some(t => haystackToks.has(t));
+}
+
+// Simple edit-distance ratio for short strings (< 20 chars each)
+function fuzzyMatch(a, b) {
+  a = normalize(a); b = normalize(b);
+  if (a === b) return true;
+  if (a.includes(b) || b.includes(a)) return true;
+  // Allow up to 2 edits on short answers
+  if (a.length <= 15 && b.length <= 15) {
+    let changes = 0, i = 0, j = 0;
+    while (i < a.length || j < b.length) {
+      if (a[i] === b[j]) { i++; j++; }
+      else {
+        changes++;
+        if (changes > 2) return false;
+        if (a.length > b.length) i++;
+        else if (b.length > a.length) j++;
+        else { i++; j++; }
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
 function checkAnswer(question, userAnswer) {
   const ua = userAnswer.trim().toLowerCase();
   const ca = String(question.answer).trim().toLowerCase();
@@ -1014,10 +1058,16 @@ function checkAnswer(question, userAnswer) {
     return uaBool === (ca === 'true');
   }
   if (question.type === 'free_response') {
-    const kws = (question.keywords || []).map(k => k.toLowerCase());
-    if (!kws.length) return ua.includes(ca.slice(0, 20));
-    const matched = kws.filter(k => ua.includes(k)).length;
-    return matched >= Math.max(1, Math.ceil(kws.length / 2));
+    // 1. Direct / fuzzy match against the canonical answer
+    if (fuzzyMatch(ua, ca)) return true;
+    // 2. The user's answer contains the answer as a substring (handles "it's 43" → answer "43")
+    if (normalize(ua).includes(normalize(ca))) return true;
+    // 3. Token overlap: any key token from the answer appears in the user's input
+    if (tokenOverlap(ca, ua)) return true;
+    // 4. Keyword list: if any single keyword matches, accept it (be generous)
+    const kws = (question.keywords || '').toString().split('|').map(k => k.trim().toLowerCase()).filter(Boolean);
+    if (kws.length && kws.some(k => fuzzyMatch(ua, k) || normalize(ua).includes(normalize(k)) || tokenOverlap(k, ua))) return true;
+    return false;
   }
   return false;
 }
