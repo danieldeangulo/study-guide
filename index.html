@@ -279,6 +279,9 @@ function parseCSV(text) {
     headers.forEach((h, i) => q[h.trim()] = (vals[i] || '').trim());
     q.options  = q.options  ? q.options.split('|').filter(Boolean)  : [];
     q.keywords = q.keywords ? q.keywords.split('|').filter(Boolean) : [];
+    // Normalize short type aliases
+    const typeMap = { mc: 'multiple_choice', tf: 'true_false', fr: 'free_response' };
+    if (typeMap[q.type]) q.type = typeMap[q.type];
     return q;
   }).filter(q => q.type && q.question);
 }
